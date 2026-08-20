@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>بدء اللعبة - العاب لولي</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,#4a263a,#130d13 45%,#050407);color:#fff;font-family:Arial,sans-serif}.wrap{width:620px;max-width:92%}.brand{text-align:center;font-size:42px;font-weight:900}.pink{color:#ff9fca}.step{text-align:center;color:#c4a8b6;margin-top:8px}.card{margin-top:24px;background:#171016;border:1px solid #4a3041;border-radius:18px;padding:24px;box-shadow:0 25px 80px rgba(0,0,0,.4)}h1{font-size:24px;margin:0 0 8px}.muted{color:#b9a1b0;line-height:1.7}.profile{display:flex;align-items:center;gap:14px;margin-top:20px;padding:14px;background:#0d090d;border:1px solid #3d2837;border-radius:12px}.profile img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #ff9fca}.name{font-size:19px;font-weight:800}.handle{color:#b9a1b0;margin-top:5px}button{width:100%;padding:14px;margin-top:20px;border:0;border-radius:9px;background:#ff9fca;color:#160b12;font-size:16px;font-weight:800;cursor:pointer}button.secondary{background:#21151e;color:#fff;border:1px solid #58364a}.status{text-align:center;color:#ff9fca;min-height:24px;margin-top:14px}.back{display:block;text-align:center;color:#b9a1b0;text-decoration:none;margin-top:18px}
+</style>
+</head>
+<body><main class="wrap"><div class="brand">العاب <span class="pink">لولي</span></div><div class="step">الخطوة 2 من 4</div><section class="card"><h1>بدء اللعبة</h1><div class="muted">تأكد من الاتصال بالبث، ثم ابدأ الجولة عندما تكون جاهزًا.</div><div id="profile" class="profile" style="display:none"><img id="avatar" alt=""><div><div id="nickname" class="name"></div><div id="handle" class="handle"></div></div></div><button id="start" onclick="startGame()">بدء اللعبة</button><button class="secondary" onclick="location.href='/connect'">العودة للاتصال</button><div id="status" class="status"></div></section></main>
+<script>
+function safeImage(url){return typeof url==="string"&&/^https?:\/\//i.test(url)?url:""}
+async function load(){try{const response=await fetch("/api/live/status",{cache:"no-store"});const data=await response.json();if(!data.live||!data.live.connected){location.href="/connect";return}document.getElementById("profile").style.display="flex";document.getElementById("nickname").textContent=data.live.nickname||data.live.username;document.getElementById("handle").textContent="@"+data.live.username;const avatar=document.getElementById("avatar");const source=safeImage(data.live.avatar);avatar.src=source;avatar.style.display=source?"block":"none"}catch(error){document.getElementById("status").textContent="تعذر قراءة حالة البث."}}
+async function startGame(){const button=document.getElementById("start");const status=document.getElementById("status");button.disabled=true;status.textContent="جاري بدء اللعبة...";try{const response=await fetch("/api/game/start",{method:"POST"});const data=await response.json();if(!data.success){status.textContent=data.message||"لا توجد أسئلة.";button.disabled=false;return}location.href="/questions"}catch(error){status.textContent="تعذر بدء اللعبة.";button.disabled=false}}
+load();
+</script></body></html>
