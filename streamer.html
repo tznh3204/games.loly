@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>البث — العاب لولي</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#4a263a,#130d13 50%,#050407);color:#fff;font-family:Arial,sans-serif}
+.wrap{width:820px;max-width:94%;margin:auto;padding:28px 0}
+.logo{font-size:42px;font-weight:900}.green{color:#ff9fca}
+.card{background:#171016;border:1px solid #4a3041;border-radius:20px;padding:25px;margin-top:18px;box-shadow:0 25px 80px rgba(0,0,0,.45)}
+input{width:100%;padding:14px;background:#080b0e;border:1px solid #303b43;border-radius:9px;color:#fff;font-size:16px;direction:ltr}
+button{width:100%;padding:14px;margin-top:12px;border:0;border-radius:9px;background:#ff9fca;color:#160b12;font-weight:800;font-size:16px;cursor:pointer}
+button.secondary{background:#21151e;color:#fff;border:1px solid #58364a}
+button.danger{background:#2a1616;color:#fff;border:1px solid #633030}
+button:disabled{opacity:.45;cursor:not-allowed}
+.status{padding:14px;margin-top:15px;border-radius:10px;background:#0d090d;border:1px solid #4a3041;color:#ff9fca}
+.profile{display:none;align-items:center;gap:14px;margin-top:18px;padding:14px;background:#0a0e11;border-radius:12px}
+.profile img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:2px solid #ff9fca}
+.name{font-size:20px;font-weight:800}.muted{color:#89949b;margin-top:5px}
+.game{display:none}.questionNo{text-align:center;color:#89949b}.question{font-size:28px;font-weight:800;text-align:center;line-height:1.6;margin:20px 0}
+.timer{font-size:48px;font-weight:900;color:#ff9fca;text-align:center}.timer.danger{color:#ffbf3c}
+.result{text-align:center;padding:18px;border:1px solid #29343b;border-radius:14px;background:#0a0e11;margin-top:15px}
+.result img{width:105px;height:105px;border-radius:50%;object-fit:cover;border:3px solid #ff9fca}
+.result .rname{font-size:22px;font-weight:800;margin-top:10px}
+.next{display:none}.surprise{display:none}.surprise h2{text-align:center;font-size:34px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.controls{grid-template-columns:1fr}.question{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="logo">العاب <span class="green">لولي</span></div><a href="/administration" style="color:#ff9fca;text-decoration:none;border:1px solid #58364a;padding:10px 13px;border-radius:9px">إدارة الأسئلة</a></div>
+
+<div class="card" id="connectCard">
+<div style="color:#89949b;margin-bottom:12px">اتصال بث TikTok</div>
+<input id="username" placeholder="@username" autocomplete="off">
+<button id="connect" onclick="connectLive()">اتصال بالبث</button>
+<div id="status" class="status">لم يتم الاتصال بالبث</div>
+
+<div id="profile" class="profile">
+<img id="avatar" alt="">
+<div><div id="nickname" class="name"></div><div id="liveUsername" class="muted"></div></div>
+</div>
+
+<button id="start" onclick="startGame()" disabled>بدء اللعبة</button>
+</div>
+
+<div class="card game" id="gameCard">
+<div id="questionNo" class="questionNo"></div>
+<div id="question" class="question"></div>
+<div id="timer" class="timer">15</div>
+<div id="gameState" class="status"></div>
+
+<div id="result" class="result" style="display:none">
+<img id="resultAvatar" alt="">
+<div id="resultName" class="rname"></div>
+<div id="resultMessage" class="muted"></div>
+<div id="resultXp" style="color:#ff9fca;font-weight:bold;margin-top:8px"></div>
+</div>
+
+<div class="controls">
+<button id="next" class="next" onclick="nextQuestion()">السؤال التالي</button>
+<button id="reset" class="secondary" onclick="resetGame()">إعادة ضبط اللعبة</button>
+</div>
+
+<button id="surprise" class="surprise" onclick="showSurprise()">الانتقال للمفاجأة</button>
+</div>
+
+<div class="card surprise" id="surpriseCard">
+<h2>زووووووط لولي</h2>
+</div>
+</div>
+
+<script>
+let connected=false;
+let previousPhase="";
+let previousIndex=-1;
+
+function safeImage(url){
+    return typeof url==="string" && /^https?:\/\//i.test(url) ? url : "";
+}
+
+async function connectLive(){
+    const username=document.getElementById("username").value.trim().replace(/^@/,"");
+    const status=document.getElementById("status");
+    const btn=document.getElementById("connect");
+    if(!username){status.textContent="اكتب يوزر TikTok.";return}
+    btn.disabled=true;
+    status.textContent="جاري البحث عن البث...";
+    try{
+        const r=await fetch("/api/live/connect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username})});
+        const d=await r.json();
+        if(!d.success){status.textContent=d.message||"تعذر الاتصال بالبث.";btn.disabled=false;return}
+        connected=true;
+        status.textContent="تم الاتصال بالبث.";
+        document.getElementById("nickname").textContent=d.nickname||username;
+        document.getElementById("liveUsername").textContent="@"+(d.username||username);
+        const avatar=document.getElementById("avatar");
+        if(safeImage(d.avatar)){avatar.src=d.avatar;avatar.style.display="block"}else avatar.style.display="none";
+        document.getElementById("profile").style.display="flex";
+        document.getElementById("start").disabled=false;
+    }catch(e){
+        status.textContent="حدث خطأ في الاتصال بالسيرفر.";
+    }finally{btn.disabled=false}
+}
+
+async function startGame(){
+    const r=await fetch("/api/game/start",{method:"POST"});
+    const d=await r.json();
+    if(!d.success){alert(d.message||"تعذر بدء اللعبة.");return}
+    render(d.game);
+}
+
+async function nextQuestion(){
+    const r=await fetch("/api/game/next",{method:"POST"});
+    const d=await r.json();
+    if(!d.success){document.getElementById("gameState").textContent=d.message||"لا يمكن الانتقال الآن.";return}
+    render(d.game);
+}
+
+async function resetGame(){
+    await fetch("/api/game/reset",{method:"POST"});
+    location.reload();
+}
+
+function render(g){
+    if(!g.started || g.phase==="waiting")return;
+
+    document.getElementById("gameCard").style.display="block";
+
+    if(g.phase==="finished"){
+        document.getElementById("questionNo").textContent="اكتملت اللعبة";
+        document.getElementById("question").textContent="انتهت جميع الأسئلة";
+        document.getElementById("timer").textContent="0";
+        document.getElementById("gameState").textContent="يمكن الآن الانتقال للمفاجأة.";
+        if(g.finalWinner){
+            document.getElementById("gameState").textContent=g.resultMessage;
+            document.getElementById("result").style.display="block";
+            document.getElementById("resultName").textContent=g.finalWinner.nickname||g.finalWinner.username||"الفائز";
+            document.getElementById("resultMessage").textContent="يعرف البث اكثر";
+            document.getElementById("resultXp").textContent=`${g.finalWinner.totalXp} XP`;
+            const finalSrc=safeImage(g.finalWinner.avatar);
+            document.getElementById("resultAvatar").src=finalSrc;
+            document.getElementById("resultAvatar").style.display=finalSrc?"inline-block":"none";
+        }else document.getElementById("result").style.display="none";
+        document.getElementById("next").style.display="none";
+        document.getElementById("surprise").style.display="block";
+        return;
+    }
+
+    document.getElementById("surprise").style.display="none";
+    document.getElementById("questionNo").textContent=`السؤال ${g.currentIndex+1} من ${g.totalQuestions}`;
+    document.getElementById("question").textContent=g.currentQuestion;
+    document.getElementById("timer").textContent=g.remainingSeconds;
+    document.getElementById("timer").className="timer"+(g.remainingSeconds<=5?" danger":"");
+
+    const result=document.getElementById("result");
+    const next=document.getElementById("next");
+    const state=document.getElementById("gameState");
+
+    if(g.phase==="question"){
+        state.textContent="بانتظار الإجابة الصحيحة.";
+        result.style.display="none";
+        next.style.display="none";
+    }else{
+        state.textContent=g.resultMessage||"انتهى السؤال.";
+        next.style.display="block";
+        if(g.phase==="answered" && g.winner){
+            result.style.display="block";
+            const avatar=document.getElementById("resultAvatar");
+            const src=safeImage(g.winner.avatar);
+            if(src){
+                avatar.src=src;avatar.style.display="inline-block";
+                avatar.onerror=()=>avatar.style.display="none";
+            }else avatar.style.display="none";
+            document.getElementById("resultName").textContent=g.winner.nickname||g.winner.username||"مشارك";
+            document.getElementById("resultMessage").textContent=`الإجابة: ${g.winner.message||""}`;
+            document.getElementById("resultXp").textContent=`${g.winner.earnedXp||0} XP - المجموع: ${g.winner.totalXp||0} XP`;
+        }else{
+            result.style.display="none";
+        }
+    }
+}
+
+async function poll(){
+    try{
+        const r=await fetch("/api/game/state",{cache:"no-store"});
+        const d=await r.json();
+        if(d.success)render(d.game);
+    }catch(e){}
+}
+setInterval(poll,500);
+
+function showSurprise(){
+    window.location.href="/surprise";
+}
+</script>
+</body>
+</html>

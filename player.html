@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>العاب لولي — اللاعب</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#4a263a,#130d13 50%,#050407);color:#fff;font-family:Arial,sans-serif}
+.wrap{width:760px;max-width:92%;margin:0 auto;padding:35px 0}
+.logo{font-size:42px;font-weight:900;text-align:center}.green{color:#ff9fca}
+.card{margin-top:22px;background:#171016;border:1px solid #4a3041;border-radius:20px;padding:28px;box-shadow:0 25px 80px rgba(0,0,0,.45)}
+.wait{text-align:center;color:#89949b;padding:35px}
+.question-no{text-align:center;color:#89949b;font-size:14px}
+.question{font-size:28px;font-weight:800;text-align:center;line-height:1.6;margin:22px 0}
+.timer{width:130px;height:130px;border:6px solid #4a3041;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:20px auto;font-size:42px;font-weight:900;color:#ff9fca}
+.timer.danger{color:#ffbf3c;border-color:#4b3d24}
+.timer.done{color:#89949b;border-color:#30383d}
+.state{text-align:center;color:#89949b;min-height:28px;line-height:1.7}
+.winner{display:none;margin-top:22px;text-align:center;padding:22px;border:1px solid #29343b;border-radius:16px;background:#0a0e11}
+.winner img{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #ff9fca;background:#111}
+.winner .name{font-size:23px;font-weight:800;margin-top:12px}
+.winner .answer{margin-top:8px;color:#89949b}
+.winner .xp{margin-top:12px;color:#ff9fca;font-weight:bold}
+button{width:100%;padding:15px;border:0;border-radius:10px;background:#ff9fca;color:#160b12;font-size:17px;font-weight:800;cursor:pointer;margin-top:20px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.finished{display:none;text-align:center;padding:35px}.finished h2{font-size:30px}.final-winner{margin-top:20px}.final-winner img{width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid #ff9fca;background:#111}.final-name{font-size:25px;font-weight:800;margin-top:12px}.final-score{color:#ff9fca;font-size:19px;font-weight:800;margin-top:8px}
+@media(max-width:600px){.question{font-size:22px}.timer{width:105px;height:105px;font-size:34px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="logo">العاب <span class="green">لولي</span></div>
+<div class="card">
+<div id="waiting" class="wait">بانتظار بدء اللعبة...</div>
+
+<div id="game" style="display:none">
+<div id="questionNo" class="question-no"></div>
+<div id="question" class="question"></div>
+<div id="timer" class="timer">15</div>
+<div id="state" class="state"></div>
+
+<div id="winner" class="winner">
+<img id="winnerAvatar" src="" alt="">
+<div id="winnerName" class="name"></div>
+<div id="winnerAnswer" class="answer"></div>
+<div id="winnerXp" class="xp">18 XP</div>
+</div>
+</div>
+
+<div id="finished" class="finished">
+<h2>انتهت اللعبة</h2>
+<p id="finishedText">تم الانتهاء من جميع الأسئلة.</p>
+<div id="finalWinner" class="final-winner" style="display:none"><img id="finalWinnerAvatar" alt=""><div id="finalWinnerName" class="final-name"></div><div id="finalWinnerScore" class="final-score"></div></div>
+</div>
+</div>
+</div>
+
+<script>
+let lastSignature="";
+
+function safeImage(url){
+    return typeof url==="string" && /^https?:\/\//i.test(url) ? url : "";
+}
+
+async function poll(){
+    try{
+        const r=await fetch("/api/game/state",{cache:"no-store"});
+        const d=await r.json();
+        if(!d.success)return;
+        render(d.game);
+    }catch(e){}
+}
+
+function render(g){
+    if(g.phase==="waiting"){
+        document.getElementById("waiting").style.display="block";
+        document.getElementById("game").style.display="none";
+        document.getElementById("finished").style.display="none";
+        return;
+    }
+
+    if(g.phase==="finished"){
+        document.getElementById("waiting").style.display="none";
+        document.getElementById("game").style.display="none";
+        document.getElementById("finished").style.display="block";
+        document.getElementById("finishedText").textContent=g.resultMessage||"انتهت اللعبة.";
+        const finalWinner=g.finalWinner;
+        const finalWinnerBox=document.getElementById("finalWinner");
+        if(finalWinner){
+            finalWinnerBox.style.display="block";
+            const finalAvatar=document.getElementById("finalWinnerAvatar");
+            const finalSrc=safeImage(finalWinner.avatar);
+            finalAvatar.src=finalSrc;
+            finalAvatar.style.display=finalSrc?"inline-block":"none";
+            document.getElementById("finalWinnerName").textContent=finalWinner.nickname||finalWinner.username||"الفائز";
+            document.getElementById("finalWinnerScore").textContent=`${finalWinner.totalXp} XP`;
+        }else finalWinnerBox.style.display="none";
+        return;
+    }
+
+    document.getElementById("waiting").style.display="none";
+    document.getElementById("finished").style.display="none";
+    document.getElementById("game").style.display="block";
+
+    document.getElementById("questionNo").textContent =
+        `السؤال ${g.currentIndex+1} من ${g.totalQuestions}`;
+
+    document.getElementById("question").textContent=g.currentQuestion;
+
+    const timer=document.getElementById("timer");
+    timer.textContent=Math.max(0,g.remainingSeconds);
+    timer.className="timer"+(g.remainingSeconds<=5&&g.phase==="question"?" danger":"")+
+        (g.phase==="timeup"||g.phase==="answered"?" done":"");
+
+    const state=document.getElementById("state");
+    const winner=document.getElementById("winner");
+
+    if(g.phase==="question"){
+        state.textContent="أرسل إجابتك في تعليق البث.";
+        winner.style.display="none";
+    }else if(g.phase==="timeup"){
+        state.textContent=g.resultMessage||"انتهى الوقت، لم يجب أحد السؤال.";
+        winner.style.display="none";
+    }else if(g.phase==="answered"){
+        state.textContent=g.resultMessage||"تمت الإجابة الصحيحة.";
+        winner.style.display="block";
+
+        const w=g.winner||{};
+        const avatar=document.getElementById("winnerAvatar");
+        const src=safeImage(w.avatar);
+        if(src){
+            avatar.src=src;
+            avatar.style.display="inline-block";
+            avatar.onerror=()=>{avatar.style.display="none"};
+        }else{
+            avatar.removeAttribute("src");
+            avatar.style.display="none";
+        }
+        document.getElementById("winnerName").textContent=w.nickname||w.username||"مشارك";
+        document.getElementById("winnerAnswer").textContent=`الإجابة: ${w.message||""} - مجموع النقاط: ${w.totalXp||0} XP`;
+        document.getElementById("winnerXp").textContent=`+${w.earnedXp||0} XP | المجموع ${w.totalXp||0} XP`;
+    }
+}
+
+poll();
+setInterval(poll,500);
+</script>
+</body>
+</html>
