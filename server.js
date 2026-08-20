@@ -4,7 +4,7 @@ const path = require("path");
 const { TikTokLiveConnection, WebcastEvent } = require("tiktok-live-connector");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const ADMIN_CODE = "3204";
 const QUESTION_TIME = 15;
 const QUESTIONS_FILE = path.join(__dirname, "questions.json");
